@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Calendar — ProjectFlow{% endblock %}
+{% block page_title %}Calendar{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h1>Calendar</h1><p>Project timelines, meetings, and deadlines</p></div>
+  <button class="btn btn-primary" onclick="Modal.show('new-event-modal')">+ New Event</button>
+</div>
+
+<div style="display:flex;gap:20px">
+  <!-- Mini calendar nav -->
+  <div class="card" style="width:280px;flex-shrink:0;align-self:flex-start">
+    <div class="card-header">
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="changeMonth(-1)">‹</button>
+      <span class="card-title" id="cal-month-label" style="font-size:14px"></span>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="card-body" style="padding:8px">
+      <div id="mini-cal"></div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border)">
+      <div style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-2);margin-bottom:10px">Event Types</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:#6366f1;display:inline-block"></span>Meeting</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block"></span>Deadline</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block"></span>Milestone</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block"></span>Reminder</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main calendar -->
+  <div class="card" style="flex:1">
+    <div class="card-body" style="padding:0">
+      <div id="main-calendar"></div>
+    </div>
+  </div>
+</div>
+
+<!-- New Event Modal -->
+<div class="modal-overlay" id="new-event-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <span class="modal-title">New Event</span>
+      <button class="modal-close" onclick="Modal.hide('new-event-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Title *</label><input type="text" class="form-input" id="ev-title" placeholder="Event title"></div>
+      <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="ev-desc"></div>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Start *</label><input type="datetime-local" class="form-input" id="ev-start"></div>
+        <div class="form-group"><label class="form-label">End</label><input type="datetime-local" class="form-input" id="ev-end"></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select class="form-select" id="ev-type">
+            <option value="meeting">Meeting</option>
+            <option value="deadline">Deadline</option>
+            <option value="milestone">Milestone</option>
+            <option value="reminder">Reminder</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Color</label><input type="color" class="form-input" id="ev-color" value="#6366f1" style="height:40px;padding:4px 8px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Modal.hide('new-event-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createEvent()">Create Event</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<style>
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); }
+.cal-day-header { text-align:center; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text-2); padding:10px 0; }
+.cal-day { min-height:100px; padding:6px; border-top:1px solid var(--border); border-right:1px solid var(--border); }
+.cal-day:nth-child(7n) { border-right:none; }
+.cal-day.other-month { background:var(--surface2); }
+.cal-day.today { background:rgba(99,102,241,.04); }
+.cal-day-num { font-size:12px; font-weight:600; margin-bottom:4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
+.cal-day.today .cal-day-num { background:var(--brand); color:white; }
+.cal-event { font-size:11px; font-weight:500; padding:2px 6px; border-radius:4px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+.mini-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.mini-day { width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:12px; border-radius:6px; cursor:pointer; }
+.mini-day:hover { background:var(--surface2); }
+.mini-day.today { background:var(--brand); color:white; font-weight:700; }
+.mini-day.has-event { position:relative; }
+.mini-day.has-event::after { content:''; width:4px; height:4px; border-radius:50%; background:var(--brand); position:absolute; bottom:2px; }
+</style>
+<script>
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let allEvents = [];
+
+async function loadEvents() {
+  try { allEvents = await API.get('/calendar'); renderCalendar(); } catch {}
+}
+
+function changeMonth(dir) { calMonth += dir; if (calMonth > 11) { calMonth = 0; calYear++; } if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+
+function renderCalendar() {
+  document.getElementById('cal-month-label').textContent = new Date(calYear, calMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  renderMini(); renderMain();
+}
+
+function renderMini() {
+  const days = ['S','M','T','W','T','F','S'];
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const total = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  let html = days.map(d => `<div style="text-align:center;font-size:10px;font-weight:700;color:var(--text-2);height:22px;display:flex;align-items:center;justify-content:center">${d}</div>`).join('');
+  for (let i = 0; i < first; i++) html += '<div></div>';
+  for (let d = 1; d <= total; d++) {
+    const isToday = today.getDate() === d && today.getMonth() === calMonth && today.getFullYear() === calYear;
+    const hasEv = allEvents.some(e => { const dt = new Date(e.start_time); return dt.getDate() === d && dt.getMonth() === calMonth && dt.getFullYear() === calYear; });
+    html += `<div class="mini-day${isToday ? ' today' : ''}${hasEv ? ' has-event' : ''}">${d}</div>`;
+  }
+  document.getElementById('mini-cal').innerHTML = `<div class="mini-grid">${html}</div>`;
+}
+
+function renderMain() {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const total = new Date(calYear, calMonth + 1, 0).getDate();
+  const prevTotal = new Date(calYear, calMonth, 0).getDate();
+  const today = new Date();
+  let html = days.map(d => `<div class="cal-day-header">${d}</div>`).join('');
+
+  for (let i = 0; i < first; i++) {
+    html += `<div class="cal-day other-month"><div class="cal-day-num">${prevTotal - first + i + 1}</div></div>`;
+  }
+  for (let d = 1; d <= total; d++) {
+    const isToday = today.getDate() === d && today.getMonth() === calMonth && today.getFullYear() === calYear;
+    const dayEvents = allEvents.filter(e => { const dt = new Date(e.start_time); return dt.getDate() === d && dt.getMonth() === calMonth && dt.getFullYear() === calYear; });
+    html += `<div class="cal-day${isToday ? ' today' : ''}">
+      <div class="cal-day-num">${d}</div>
+      ${dayEvents.map(e => `<div class="cal-event" style="background:${e.color}22;color:${e.color}" title="${e.title}">${e.title}</div>`).join('')}
+    </div>`;
+  }
+  const remaining = (7 - (first + total) % 7) % 7;
+  for (let i = 1; i <= remaining; i++) html += `<div class="cal-day other-month"><div class="cal-day-num">${i}</div></div>`;
+  document.getElementById('main-calendar').innerHTML = `<div class="cal-grid">${html}</div>`;
+}
+
+async function createEvent() {
+  const title = document.getElementById('ev-title').value.trim();
+  if (!title) { Toast.error('Title required'); return; }
+  try {
+    await API.post('/calendar', {
+      title, description: document.getElementById('ev-desc').value,
+      start_time: document.getElementById('ev-start').value,
+      end_time: document.getElementById('ev-end').value || null,
+      event_type: document.getElementById('ev-type').value,
+      color: document.getElementById('ev-color').value,
+    });
+    Modal.hide('new-event-modal');
+    Toast.success('Event created!');
+    loadEvents();
+  } catch (err) { Toast.error(err.message); }
+}
+
+loadEvents();
+</script>
+{% endblock %}

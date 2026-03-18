@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Profile — ProjectFlow{% endblock %}
+{% block page_title %}Profile{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:0 auto">
+  <div class="page-header">
+    <div class="page-header-left"><h1>My Profile</h1><p>Manage your account settings</p></div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-body" style="display:flex;align-items:center;gap:20px">
+      <div class="user-avatar" id="profile-avatar" style="width:72px;height:72px;font-size:26px;flex-shrink:0"></div>
+      <div>
+        <div id="profile-name" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:4px"></div>
+        <div id="profile-email" style="font-size:13.5px;color:var(--text-2);margin-bottom:6px"></div>
+        <div style="display:flex;gap:8px">
+          <span id="profile-role-badge" class="badge"></span>
+          <span id="profile-title-badge" style="font-size:13px;color:var(--text-2)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Edit Profile</span></div>
+    <div class="card-body">
+      <div class="form-group"><label class="form-label">Full name</label><input type="text" class="form-input" id="edit-name"></div>
+      <div class="form-group"><label class="form-label">Job title</label><input type="text" class="form-input" id="edit-title"></div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:14px">Change Password</div>
+        <div class="form-group"><label class="form-label">New password</label><input type="password" class="form-input" id="edit-pass" placeholder="Leave blank to keep current"></div>
+      </div>
+      <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><span class="card-title">My Recent Time Logs</span></div>
+    <div class="card-body" style="padding:0">
+      <table class="data-table">
+        <thead><tr><th>Task</th><th>Hours</th><th>Date</th><th>Notes</th></tr></thead>
+        <tbody id="profile-logs"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-weight:600;font-size:13.5px;color:var(--danger)">Sign out</div>
+      <div style="font-size:12.5px;color:var(--text-2)">Sign out of your account</div>
+    </div>
+    <button class="btn btn-danger btn-sm" onclick="Auth.logout()">Sign Out</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadProfile() {
+  if (!Auth.user) return;
+  const u = Auth.user;
+  document.getElementById('profile-name').textContent = u.name;
+  document.getElementById('profile-email').textContent = u.email;
+  document.getElementById('edit-name').value = u.name;
+  document.getElementById('edit-title').value = u.job_title || '';
+  const av = document.getElementById('profile-avatar');
+  av.style.background = Utils.strColor(u.name);
+  av.textContent = Utils.initials(u.name);
+  const rb = document.getElementById('profile-role-badge');
+  const roleColors = { admin: '#6366f1', manager: '#3b82f6', member: '#10b981', viewer: '#f59e0b' };
+  rb.style.background = (roleColors[u.role] || '#6366f1') + '22';
+  rb.style.color = roleColors[u.role] || '#6366f1';
+  rb.textContent = u.role;
+  document.getElementById('profile-title-badge').textContent = u.job_title || '';
+
+  try {
+    const logs = await API.get('/timelog/user');
+    const tbody = document.getElementById('profile-logs');
+    tbody.innerHTML = logs.slice(0,8).map(l => `
+      <tr>
+        <td>${l.task.title}</td>
+        <td><strong>${l.hours}h</strong></td>
+        <td>${Utils.formatDate(l.date)}</td>
+        <td style="color:var(--text-2)">${l.description || '—'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-2)">No time logged yet</td></tr>';
+  } catch {}
+}
+
+async function saveProfile() {
+  const data = {
+    name: document.getElementById('edit-name').value.trim(),
+    job_title: document.getElementById('edit-title').value.trim(),
+  };
+  const pass = document.getElementById('edit-pass').value;
+  if (pass) data.password = pass;
+  try {
+    const updated = await API.put('/auth/me', data);
+    Auth.user = updated;
+    localStorage.setItem('pf_user', JSON.stringify(updated));
+    Toast.success('Profile updated!');
+    loadProfile();
+  } catch (err) { Toast.error(err.message); }
+}
+
+loadProfile();
+</script>
+{% endblock %}

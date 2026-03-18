@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — ProjectFlow</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    body { background: #0f1117; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .auth-wrap { display: flex; width: 900px; max-width: 100%; min-height: 560px; background: var(--surface); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+    .auth-left {
+      flex: 1; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4f46e5 100%);
+      padding: 48px 40px; display: flex; flex-direction: column; justify-content: space-between;
+      position: relative; overflow: hidden;
+    }
+    .auth-left::before {
+      content: '';
+      position: absolute; top: -40%; right: -30%;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(99,102,241,.4) 0%, transparent 70%);
+    }
+    .auth-left-logo { display: flex; align-items: center; gap: 10px; position: relative; }
+    .auth-left-logo .logo-icon { width: 36px; height: 36px; background: rgba(255,255,255,.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Syne',sans-serif; font-weight: 800; color: white; font-size: 16px; }
+    .auth-left-logo span { font-family: 'Syne',sans-serif; font-weight: 700; font-size: 18px; color: white; }
+    .auth-left-body { position: relative; }
+    .auth-left-body h2 { font-family: 'Syne',sans-serif; font-size: 28px; font-weight: 800; color: white; line-height: 1.25; margin-bottom: 14px; }
+    .auth-left-body p { color: rgba(255,255,255,.65); font-size: 14px; line-height: 1.6; }
+    .auth-features { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; position: relative; }
+    .auth-feature { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.8); font-size: 13.5px; }
+    .auth-feature::before { content: '✓'; width: 20px; height: 20px; background: rgba(255,255,255,.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; flex-shrink: 0; }
+    .auth-right { flex: 1; padding: 48px 40px; display: flex; flex-direction: column; justify-content: center; }
+    .auth-right h1 { font-family: 'Syne',sans-serif; font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .auth-right .subtitle { color: var(--text-2); font-size: 14px; margin-bottom: 32px; }
+    .auth-footer { margin-top: 20px; text-align: center; font-size: 13.5px; color: var(--text-2); }
+    .auth-footer a { color: var(--brand); font-weight: 600; text-decoration: none; }
+    .demo-accounts { background: var(--surface2); border-radius: 10px; padding: 14px; margin-bottom: 20px; }
+    .demo-accounts p { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-2); margin-bottom: 8px; }
+    .demo-btn { display: inline-block; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; margin: 3px 3px 0 0; transition: all .15s; }
+    .demo-btn:hover { border-color: var(--brand); color: var(--brand); }
+    @media (max-width: 700px) { .auth-left { display: none; } .auth-right { padding: 32px 24px; } }
+  </style>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-left">
+    <div class="auth-left-logo">
+      <div class="logo-icon">PF</div>
+      <span>ProjectFlow</span>
+    </div>
+    <div class="auth-left-body">
+      <h2>Manage projects.<br>Ship faster.<br>Together.</h2>
+      <p>The complete project management platform built for modern teams.</p>
+      <div class="auth-features">
+        <div class="auth-feature">Kanban boards & task tracking</div>
+        <div class="auth-feature">Real-time team chat</div>
+        <div class="auth-feature">Time tracking & reporting</div>
+        <div class="auth-feature">Calendar & notifications</div>
+        <div class="auth-feature">File sharing & collaboration</div>
+      </div>
+    </div>
+    <div style="color:rgba(255,255,255,.3);font-size:12px;">© 2025 ProjectFlow</div>
+  </div>
+  <div class="auth-right">
+    <h1>Welcome back</h1>
+    <p class="subtitle">Sign in to your workspace</p>
+
+    <div class="demo-accounts">
+      <p>Quick demo login</p>
+      <span class="demo-btn" onclick="fillDemo('admin@projectflow.com','admin123')">Admin</span>
+      <span class="demo-btn" onclick="fillDemo('sarah@projectflow.com','password123')">Manager</span>
+      <span class="demo-btn" onclick="fillDemo('james@projectflow.com','password123')">Developer</span>
+      <span class="demo-btn" onclick="fillDemo('priya@projectflow.com','password123')">Designer</span>
+    </div>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">Email address</label>
+        <input type="email" class="form-input" id="email" placeholder="you@company.com" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px" id="login-btn">
+        Sign in
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Don't have an account? <a href="/register">Create one free</a>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+<script>
+function fillDemo(email, pass) {
+  document.getElementById('email').value = email;
+  document.getElementById('password').value = pass;
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
+  try {
+    const data = await API.post('/auth/login', {
+      email: document.getElementById('email').value,
+      password: document.getElementById('password').value
+    });
+    localStorage.setItem('pf_token', data.token);
+    localStorage.setItem('pf_user', JSON.stringify(data.user));
+    window.location.href = '/dashboard';
+  } catch (err) {
+    Toast.error(err.message || 'Login failed');
+    btn.textContent = 'Sign in';
+    btn.disabled = false;
+  }
+});
+
+// Redirect if already logged in
+if (localStorage.getItem('pf_token')) window.location.href = '/dashboard';
+</script>
+</body>
+</html>

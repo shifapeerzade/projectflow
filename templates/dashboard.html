@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ProjectFlow{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats Grid -->
+<div class="stats-grid" id="stats-grid">
+  <div class="stat-card" style="--accent:#6366f1;--accent-light:rgba(99,102,241,.1)">
+    <div class="stat-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+    </div>
+    <div class="stat-value" id="stat-projects">—</div>
+    <div class="stat-label">Total Projects</div>
+  </div>
+  <div class="stat-card" style="--accent:#10b981;--accent-light:rgba(16,185,129,.1)">
+    <div class="stat-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+    </div>
+    <div class="stat-value" id="stat-tasks-done">—</div>
+    <div class="stat-label">Tasks Completed</div>
+  </div>
+  <div class="stat-card" style="--accent:#f59e0b;--accent-light:rgba(245,158,11,.1)">
+    <div class="stat-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </div>
+    <div class="stat-value" id="stat-active">—</div>
+    <div class="stat-label">Active Projects</div>
+  </div>
+  <div class="stat-card" style="--accent:#3b82f6;--accent-light:rgba(59,130,246,.1)">
+    <div class="stat-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </div>
+    <div class="stat-value" id="stat-total-tasks">—</div>
+    <div class="stat-label">Total Tasks</div>
+  </div>
+</div>
+
+<div class="grid-2" style="gap:20px">
+  <!-- Recent Projects -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Recent Projects</span>
+      <a href="/projects" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div id="recent-projects" style="padding:0">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- My Tasks -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">My Tasks</span>
+      <span id="my-task-count" class="badge badge-in_progress">0</span>
+    </div>
+    <div id="my-tasks" style="padding:0">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Upcoming Events -->
+<div class="card" style="margin-top:20px">
+  <div class="card-header">
+    <span class="card-title">Upcoming Events</span>
+    <a href="/calendar" class="btn btn-ghost btn-sm">Open calendar →</a>
+  </div>
+  <div id="upcoming-events" class="card-body">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadDashboard() {
+  // Summary stats
+  try {
+    const s = await API.get('/reports/summary');
+    document.getElementById('stat-projects').textContent = s.total_projects;
+    document.getElementById('stat-tasks-done').textContent = s.completed_tasks;
+    document.getElementById('stat-active').textContent = s.active_projects;
+    document.getElementById('stat-total-tasks').textContent = s.total_tasks;
+  } catch {}
+
+  // Recent projects
+  try {
+    const projects = await API.get('/projects');
+    const el = document.getElementById('recent-projects');
+    if (!projects.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:40px"><p>No projects yet. <a href="/projects" style="color:var(--brand)">Create one!</a></p></div>';
+      return;
+    }
+    el.innerHTML = projects.slice(0, 5).map(p => `
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;cursor:pointer" onclick="window.location.href='/projects/${p.id}'">
+        <div style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">${p.name}</div>
+          <div class="progress-bar" style="width:100%;max-width:200px">
+            <div class="progress-fill" style="width:${p.progress}%"></div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="badge badge-${p.status}">${p.status.replace('_',' ')}</span>
+          <div style="font-size:11.5px;color:var(--text-2);margin-top:3px">${p.progress}%</div>
+        </div>
+      </div>
+    `).join('');
+  } catch {}
+
+  // My tasks
+  try {
+    const projects = await API.get('/projects');
+    let allMyTasks = [];
+    for (const p of projects.slice(0, 4)) {
+      try {
+        const tasks = await API.get(`/tasks/project/${p.id}`);
+        const mine = tasks.filter(t => t.assignees.some(a => a.id === Auth.user.id) && t.status !== 'done');
+        allMyTasks = allMyTasks.concat(mine.map(t => ({ ...t, project: p })));
+      } catch {}
+    }
+    const el = document.getElementById('my-tasks');
+    document.getElementById('my-task-count').textContent = allMyTasks.length;
+    if (!allMyTasks.length) {
+      el.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-2)">No pending tasks 🎉</div>';
+      return;
+    }
+    el.innerHTML = allMyTasks.slice(0, 6).map(t => `
+      <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+        <div style="width:3px;height:36px;border-radius:2px;background:${Utils.priorityColor(t.priority)};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
+          <div style="font-size:12px;color:var(--text-2)">${t.project.name}</div>
+        </div>
+        <span class="badge badge-${t.status}" style="flex-shrink:0">${Utils.statusLabel(t.status)}</span>
+      </div>
+    `).join('');
+  } catch {}
+
+  // Upcoming events
+  try {
+    const events = await API.get('/calendar');
+    const upcoming = events.filter(e => new Date(e.start_time) > new Date()).slice(0, 4);
+    const el = document.getElementById('upcoming-events');
+    if (!upcoming.length) {
+      el.innerHTML = '<div style="text-align:center;color:var(--text-2);padding:20px">No upcoming events</div>';
+      return;
+    }
+    el.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px">${
+      upcoming.map(e => `
+        <div style="display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--surface2);border-radius:10px">
+          <div style="width:42px;height:42px;border-radius:10px;background:${e.color}22;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:${e.color}">${new Date(e.start_time).toLocaleDateString('en',{month:'short'})}</span>
+            <span style="font-size:16px;font-weight:800;line-height:1;color:${e.color}">${new Date(e.start_time).getDate()}</span>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:13.5px">${e.title}</div>
+            <div style="font-size:12px;color:var(--text-2)">${Utils.formatDateTime(e.start_time)}</div>
+          </div>
+          <span class="badge" style="margin-left:auto;background:${e.color}22;color:${e.color}">${e.event_type}</span>
+        </div>
+      `).join('')
+    }</div>`;
+  } catch {}
+}
+
+loadDashboard();
+</script>
+{% endblock %}

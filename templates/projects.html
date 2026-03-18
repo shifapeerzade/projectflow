@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Projects — ProjectFlow{% endblock %}
+{% block page_title %}Projects{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1>Projects</h1>
+    <p>Manage all your team projects</p>
+  </div>
+  <button class="btn btn-primary" onclick="Modal.show('new-project-modal')">
+    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    New Project
+  </button>
+</div>
+
+<!-- Filter bar -->
+<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+  <button class="btn btn-outline btn-sm filter-btn active" data-filter="all">All</button>
+  <button class="btn btn-outline btn-sm filter-btn" data-filter="active">Active</button>
+  <button class="btn btn-outline btn-sm filter-btn" data-filter="on_hold">On Hold</button>
+  <button class="btn btn-outline btn-sm filter-btn" data-filter="completed">Completed</button>
+</div>
+
+<!-- Projects Grid -->
+<div id="projects-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px">
+  <div class="loading" style="grid-column:1/-1"><div class="spinner"></div></div>
+</div>
+
+<!-- New Project Modal -->
+<div class="modal-overlay" id="new-project-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Create New Project</span>
+      <button class="modal-close" onclick="Modal.hide('new-project-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Project name *</label>
+        <input type="text" class="form-input" id="proj-name" placeholder="e.g. E-Commerce Platform">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="proj-desc" placeholder="What is this project about?"></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select class="form-select" id="proj-priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Color</label>
+          <input type="color" class="form-input" id="proj-color" value="#6366f1" style="height:40px;padding:4px 8px;cursor:pointer">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Start date</label>
+          <input type="date" class="form-input" id="proj-start">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due date</label>
+          <input type="date" class="form-input" id="proj-due">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Modal.hide('new-project-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allProjects = [];
+
+async function loadProjects() {
+  try {
+    allProjects = await API.get('/projects');
+    renderProjects(allProjects);
+  } catch (err) {
+    Toast.error('Failed to load projects');
+  }
+}
+
+function renderProjects(projects) {
+  const grid = document.getElementById('projects-grid');
+  if (!projects.length) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <h3>No projects found</h3>
+        <p>Create your first project to get started</p>
+      </div>`;
+    return;
+  }
+  grid.innerHTML = projects.map(p => `
+    <div class="card" style="cursor:pointer;transition:all .18s;overflow:hidden" onclick="window.location.href='/projects/${p.id}'"
+         onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'"
+         onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="height:5px;background:${p.color}"></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <h3 style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:4px">${p.name}</h3>
+            <span class="badge badge-${p.priority}">${p.priority}</span>
+          </div>
+          <span class="badge badge-${p.status}">${p.status.replace('_',' ')}</span>
+        </div>
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;line-height:1.5;min-height:36px">${p.description || 'No description'}</p>
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);margin-bottom:4px">
+            <span>Progress</span><span>${p.progress}%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${p.progress}%"></div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;margin-left:4px">
+            ${p.members.slice(0,4).map(m => `<div class="user-avatar" style="width:26px;height:26px;font-size:10px;margin-left:-8px;border:2px solid white;background:${Utils.strColor(m.name)}">${Utils.initials(m.name)}</div>`).join('')}
+          </div>
+          <div style="font-size:12px;color:var(--text-2)">
+            ${p.done_tasks}/${p.task_count} tasks
+            ${p.due_date ? `· Due ${Utils.formatDate(p.due_date)}` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Filter
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    renderProjects(f === 'all' ? allProjects : allProjects.filter(p => p.status === f));
+  });
+});
+
+async function createProject() {
+  const name = document.getElementById('proj-name').value.trim();
+  if (!name) { Toast.error('Project name is required'); return; }
+  try {
+    await API.post('/projects', {
+      name,
+      description: document.getElementById('proj-desc').value,
+      priority: document.getElementById('proj-priority').value,
+      color: document.getElementById('proj-color').value,
+      start_date: document.getElementById('proj-start').value || null,
+      due_date: document.getElementById('proj-due').value || null,
+    });
+    Modal.hide('new-project-modal');
+    Toast.success('Project created!');
+    loadProjects();
+  } catch (err) {
+    Toast.error(err.message);
+  }
+}
+
+// Set default dates
+document.getElementById('proj-start').value = new Date().toISOString().split('T')[0];
+
+loadProjects();
+</script>
+{% endblock %}

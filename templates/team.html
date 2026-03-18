@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Team — ProjectFlow{% endblock %}
+{% block page_title %}Team{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h1>Team</h1><p>Manage your team members and roles</p></div>
+  <button class="btn btn-primary" onclick="Modal.show('invite-modal')">+ Invite Member</button>
+</div>
+
+<div id="team-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
+  <div class="loading" style="grid-column:1/-1"><div class="spinner"></div></div>
+</div>
+
+<!-- Invite Modal -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">Invite Team Member</span>
+      <button class="modal-close" onclick="Modal.hide('invite-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Full name *</label><input type="text" class="form-input" id="inv-name"></div>
+      <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" id="inv-email"></div>
+      <div class="form-group"><label class="form-label">Job title</label><input type="text" class="form-input" id="inv-title"></div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-select" id="inv-role">
+          <option value="member">Member</option>
+          <option value="manager">Manager</option>
+          <option value="viewer">Viewer</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" id="inv-pass" placeholder="Min. 6 characters"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="Modal.hide('invite-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="inviteMember()">Create Account</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadTeam() {
+  try {
+    const users = await API.get('/users');
+    const grid = document.getElementById('team-grid');
+    const roleColors = { admin: '#6366f1', manager: '#3b82f6', member: '#10b981', viewer: '#f59e0b' };
+    grid.innerHTML = users.map(u => `
+      <div class="card" style="overflow:hidden">
+        <div style="height:4px;background:${roleColors[u.role] || '#6366f1'}"></div>
+        <div class="card-body" style="text-align:center;padding:24px 20px">
+          <div class="user-avatar" style="width:60px;height:60px;font-size:22px;margin:0 auto 12px;background:${Utils.strColor(u.name)}">${Utils.initials(u.name)}</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:3px">${u.name}</div>
+          <div style="font-size:13px;color:var(--text-2);margin-bottom:10px">${u.job_title || 'Team Member'}</div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-bottom:12px">
+            <span class="badge" style="background:${roleColors[u.role]}22;color:${roleColors[u.role]}">${u.role}</span>
+            ${u.is_active ? '<span class="badge badge-done">Active</span>' : '<span class="badge" style="background:#fef2f2;color:#dc2626">Inactive</span>'}
+          </div>
+          <div style="font-size:12px;color:var(--text-3)">${u.last_seen ? 'Last seen ' + Utils.timeAgo(u.last_seen) : 'Never logged in'}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch { Toast.error('Failed to load team'); }
+}
+
+async function inviteMember() {
+  const name = document.getElementById('inv-name').value.trim();
+  const email = document.getElementById('inv-email').value.trim();
+  const pass = document.getElementById('inv-pass').value;
+  if (!name || !email || !pass) { Toast.error('Name, email, and password are required'); return; }
+  try {
+    await API.post('/auth/register', {
+      name, email, password: pass,
+      job_title: document.getElementById('inv-title').value,
+      role: document.getElementById('inv-role').value,
+    });
+    Modal.hide('invite-modal');
+    Toast.success('Team member added!');
+    loadTeam();
+  } catch (err) { Toast.error(err.message); }
+}
+
+loadTeam();
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Reports — ProjectFlow{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left"><h1>Reports</h1><p>Project progress, time utilization, and productivity</p></div>
+  <select class="form-select" id="project-select" style="width:240px" onchange="loadReport(this.value)">
+    <option value="">Select a project...</option>
+  </select>
+</div>
+
+<!-- Summary Cards -->
+<div class="stats-grid" id="report-stats" style="display:none">
+  <div class="stat-card" style="--accent:#6366f1;--accent-light:rgba(99,102,241,.1)">
+    <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+    <div class="stat-value" id="r-total">0</div><div class="stat-label">Total Tasks</div>
+  </div>
+  <div class="stat-card" style="--accent:#10b981;--accent-light:rgba(16,185,129,.1)">
+    <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+    <div class="stat-value" id="r-done">0</div><div class="stat-label">Completed</div>
+  </div>
+  <div class="stat-card" style="--accent:#f59e0b;--accent-light:rgba(245,158,11,.1)">
+    <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+    <div class="stat-value" id="r-logged">0h</div><div class="stat-label">Hours Logged</div>
+  </div>
+  <div class="stat-card" style="--accent:#3b82f6;--accent-light:rgba(59,130,246,.1)">
+    <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></div>
+    <div class="stat-value" id="r-estimated">0h</div><div class="stat-label">Estimated Hours</div>
+  </div>
+</div>
+
+<div class="grid-2" id="report-charts" style="display:none;margin-top:4px">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Tasks by Status</span></div>
+    <div class="card-body" id="status-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Team Hours</span></div>
+    <div class="card-body" id="hours-chart"></div>
+  </div>
+</div>
+
+<div class="card" id="priority-report" style="margin-top:20px;display:none">
+  <div class="card-header"><span class="card-title">Tasks by Priority</span></div>
+  <div class="card-body" id="priority-chart"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadProjects() {
+  try {
+    const projects = await API.get('/projects');
+    const sel = document.getElementById('project-select');
+    projects.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });
+    if (projects.length) { sel.value = projects[0].id; loadReport(projects[0].id); }
+  } catch {}
+}
+
+function bar(pct, color, label, value) {
+  return `<div style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+      <span>${label}</span><span style="font-weight:700">${value}</span>
+    </div>
+    <div class="progress-bar" style="height:10px">
+      <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
+    </div>
+  </div>`;
+}
+
+async function loadReport(id) {
+  if (!id) return;
+  try {
+    const r = await API.get(`/reports/project/${id}`);
+    document.getElementById('report-stats').style.display = 'grid';
+    document.getElementById('report-charts').style.display = 'grid';
+    document.getElementById('priority-report').style.display = 'block';
+    document.getElementById('r-total').textContent = r.total_tasks;
+    document.getElementById('r-done').textContent = r.by_status.done || 0;
+    document.getElementById('r-logged').textContent = (r.total_logged_hours || 0).toFixed(1) + 'h';
+    document.getElementById('r-estimated').textContent = (r.total_estimated_hours || 0).toFixed(1) + 'h';
+
+    const total = r.total_tasks || 1;
+    const statusColors = { todo: '#64748b', in_progress: '#3b82f6', review: '#f59e0b', done: '#10b981' };
+    document.getElementById('status-chart').innerHTML = Object.entries(r.by_status).map(([k, v]) =>
+      bar(Math.round((v/total)*100), statusColors[k] || '#6366f1', k.replace('_',' '), v)
+    ).join('');
+
+    const priorityColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444', critical: '#9333ea' };
+    document.getElementById('priority-chart').innerHTML = Object.entries(r.by_priority).map(([k, v]) =>
+      bar(Math.round((v/total)*100), priorityColors[k] || '#6366f1', k, v)
+    ).join('');
+
+    const maxH = Math.max(...Object.values(r.member_hours), 1);
+    document.getElementById('hours-chart').innerHTML = Object.entries(r.member_hours)
+      .sort((a,b) => b[1]-a[1])
+      .map(([name, h]) => bar(Math.round((h/maxH)*100), '#6366f1', name, h.toFixed(1)+'h'))
+      .join('') || '<div style="color:var(--text-2);text-align:center;padding:20px">No time logged yet</div>';
+  } catch (err) { Toast.error('Failed to load report'); }
+}
+
+loadProjects();
+</script>
+{% endblock %}
